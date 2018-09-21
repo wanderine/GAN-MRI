@@ -1,3 +1,9 @@
+
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+# The GPU id to use, usually either "0" or "1"
+os.environ["CUDA_VISIBLE_DEVICES"]="1" 
+
 from keras.layers import Layer, Input, Conv2D, Activation, add, BatchNormalization, UpSampling2D, ZeroPadding2D, Conv2DTranspose, Flatten, MaxPooling2D, AveragePooling2D
 from keras_contrib.layers.normalization import InstanceNormalization, InputSpec
 from keras.layers.advanced_activations import LeakyReLU
@@ -6,10 +12,13 @@ from keras.optimizers import Adam
 from keras.backend import mean
 from keras.models import Model, model_from_json
 from keras.utils import plot_model
-from keras.engine.topology import Container
+from keras.engine.topology import Network
 
 from collections import OrderedDict
-from scipy.misc import imsave, toimage  # has depricated
+#from scipy.misc import imsave, toimage  # has depricated
+
+import imageio
+
 import numpy as np
 import random
 import datetime
@@ -29,8 +38,8 @@ np.random.seed(seed=12345)
 
 
 class CycleGAN():
-    def __init__(self, lr_D=2e-4, lr_G=2e-4, image_shape=(304, 256, 1),
-                 date_time_string_addition='', image_folder='MR'):
+    def __init__(self, lr_D=2e-4, lr_G=2e-4, image_shape=(308, 260, 1),
+                 date_time_string_addition='', image_folder='HCP_T1T2'):
         self.img_shape = image_shape
         self.channels = self.img_shape[-1]
         self.normalization = InstanceNormalization
@@ -44,7 +53,7 @@ class CycleGAN():
         self.discriminator_iterations = 1  # Number of generator training iterations in each training loop
         self.beta_1 = 0.5
         self.beta_2 = 0.999
-        self.batch_size = 1
+        self.batch_size = 5
         self.epochs = 200  # choose multiples of 25 since the models are save each 25th epoch
         self.save_interval = 1
         self.synthetic_pool_size = 50
@@ -112,8 +121,8 @@ class CycleGAN():
                          loss_weights=loss_weights_D)
 
         # Use containers to avoid falsy keras error about weight descripancies
-        self.D_A_static = Container(inputs=image_A, outputs=guess_A, name='D_A_static_model')
-        self.D_B_static = Container(inputs=image_B, outputs=guess_B, name='D_B_static_model')
+        self.D_A_static = Network(inputs=image_A, outputs=guess_A, name='D_A_static_model')
+        self.D_B_static = Network(inputs=image_B, outputs=guess_B, name='D_B_static_model')
 
         # ======= Generator model ==========
         # Do note update discriminator weights during generator training
@@ -369,6 +378,7 @@ class CycleGAN():
         return Model(input=inputImg, output=x, name=name)
 
     def trainSimpleModel(self):
+        
         real_A = self.A_test[0]
         real_B = self.B_test[0]
         real_A = real_A[np.newaxis, :, :, :]
@@ -386,6 +396,8 @@ class CycleGAN():
 
         self.saveModel(self.G_A2B, 200)
         self.saveModel(self.G_B2A, 200)
+
+        K.clear_session()
 
 #===============================================================================
 # Training
@@ -660,7 +672,9 @@ class CycleGAN():
         if self.channels == 1:
             image = image[:, :, 0]
 
-        toimage(image, cmin=0, cmax=1).save(path_name)
+        #toimage(image, cmin=0, cmax=1).save(path_name)
+        imageio.imwrite(path_name,image)
+		
 
     def saveImages(self, epoch, real_image_A, real_image_B, num_saved_images=1):
         directory = os.path.join('images', self.date_time)

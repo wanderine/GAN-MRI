@@ -4,7 +4,7 @@ from PIL import Image
 from keras.utils import Sequence
 
 def load_data(nr_of_channels, nr_A_train_imgs=None, nr_B_train_imgs=None,
-              nr_A_test_imgs=None, nr_B_test_imgs=None, subfolder='', generator=False, batch_size=1, path_to_data=".../GAN-MRI/UNIT/data/"):
+              nr_A_test_imgs=None, nr_B_test_imgs=None, subfolder='', generator=False, batch_size=1, path_to_data="data/"):
     trainA_path = os.path.join(path_to_data, subfolder, 'trainA')
     trainB_path = os.path.join(path_to_data, subfolder, 'trainB')
     testA_path = os.path.join(path_to_data, subfolder, 'testA')

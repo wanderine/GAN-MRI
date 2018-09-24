@@ -1,3 +1,9 @@
+
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+# The GPU id to use, usually either "0" or "1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0" 
+
 from keras.layers import ZeroPadding2D, BatchNormalization, Input, MaxPooling2D, AveragePooling2D, Conv2D, LeakyReLU, Flatten, Conv2DTranspose, Activation, add, Lambda, GaussianNoise, merge, concatenate, Dropout
 from keras_contrib.layers.normalization import InstanceNormalization
 from keras.layers.core import Dense, Flatten, Reshape
@@ -12,7 +18,11 @@ import cv2
 from tensorflow.contrib.kfac.python.ops import optimizer
 from collections import OrderedDict
 from time import localtime, strftime
-from scipy.misc import imsave, toimage
+
+#from scipy.misc import imsave, toimage
+from scipy.misc import toimage
+import imageio
+
 import numpy as np
 import json
 import sys
@@ -27,14 +37,14 @@ import csv
 class UNIT():
 
     def __init__(self, lr = 1e-4, date_time_string_addition=''):
-        self.channels = 3 # 1 for grayscale 3 RGB
+        self.channels = 1 # 1 for grayscale, 3 for RGB
         weight_decay = 0.0001/2
         # Load data
-        nr_A_train_imgs = 1
-        nr_B_train_imgs = 1
-        nr_A_test_imgs = 1
-        nr_B_test_imgs = None
-        image_folder = 'dataset-name/'
+        nr_A_train_imgs = 900
+        nr_B_train_imgs = 900
+        nr_A_test_imgs = 213
+        nr_B_test_imgs = 213
+        image_folder = 'HCP_T1T2/'
 
         # Fetch data during training instead of pre caching all images - might be necessary for large datasets
         self.use_data_generator = False
@@ -408,7 +418,7 @@ class UNIT():
             loss_gen_list_10.append(g_loss[9])
             loss_gen_list_11.append(g_loss[10])
 
-            print('----------------Epoch-------640x480---------', epoch, '/', epochs - 1)
+            print('----------------Epoch----------------', epoch, '/', epochs - 1)
             print('----------------Loop index-----------', loop_index, '/', epoch_iterations - 1)
             print('Discriminator TOTAL loss: ', dA_loss[0] + dB_loss[0])
             print('Discriminator A loss total: ', dA_loss[0])
@@ -436,7 +446,7 @@ class UNIT():
             print('guess_outAb: ', g_loss[14])
             sys.stdout.flush()
 
-            if loop_index % 5 == 0:
+            if loop_index % 50 == 0:
                 # Save temporary images continously
                 self.save_tmp_images(imgA, imgB)
                 self.print_ETA(start_time, epoch, epoch_iterations, loop_index)
@@ -722,24 +732,30 @@ class UNIT():
 
     def truncateAndSave(self, real_A, real_B, synthetic, reconstructed, epoch, sample, name, filename, tmp=False):
         synthetic = synthetic.clip(min=-1)
+
+        #print("hej {}.".format(real_A))
+        #print("hej2 {}.".format(real_B))
+
         if reconstructed is not None:
             reconstructed = reconstructed.clip(min=-1)
         # Append and save
         if tmp:
-             imsave('images/{}/{}.png'.format(
-                self.date_time, name), synthetic)
+             #imsave('images/{}/{}.png'.format(self.date_time, name), synthetic)
+             imageio.imwrite('images/{}/{}.png'.format(self.date_time, name),synthetic)
         else:
             if real_A is None and real_B is None:
-                imsave('images/{}/{}/{}_synt.png'.format(
-                self.date_time, name, filename), synthetic)
+                #imsave('images/{}/{}/{}_synt.png'.format(self.date_time, name, filename), synthetic)
+                imageio.imwrite('images/{}/{}/{}_synt.png'.format(self.date_time, name, filename),synthetic)
             elif real_B is None and reconstructed is None:
                 image = np.hstack((real_A, synthetic))
+                imageio.imwrite('images/{}/{}/epoch{}_sample{}.png'.format(self.date_time, name, epoch, sample), image)
             elif real_A is not None:
                 image = np.hstack((real_B, real_A, synthetic, reconstructed))
+                imageio.imwrite('images/{}/{}/epoch{}_sample{}.png'.format(self.date_time, name, epoch, sample), image)
             else:
                 image = np.hstack((real_B, synthetic, reconstructed))
-            imsave('images/{}/{}/epoch{}_sample{}.png'.format(
-                self.date_time, name, epoch, sample), image)
+	            #imsave('images/{}/{}/epoch{}_sample{}.png'.format(self.date_time, name, epoch, sample), image)
+                imageio.imwrite('images/{}/{}/epoch{}_sample{}.png'.format(self.date_time, name, epoch, sample), image)
 
     def saveImages(self, epoch, num_saved_images=1):
 
@@ -897,7 +913,9 @@ class UNIT():
             image_tot_clip = np.clip(image_tot/2 + 0.5, 0, 1)
 
             np.save('images/{}/{}.npy'.format(self.date_time, 'tmp'), image_tot)
-            imsave('images/{}/{}.png'.format(self.date_time, 'tmp'), image_tot_clip)
+            #imsave('images/{}/{}.png'.format(self.date_time, 'tmp'), image_tot_clip)
+            imageio.imwrite('images/{}/{}.png'.format(self.date_time, 'tmp'), image_tot_clip)
+
         except:  # Ignore if file is open
             pass
 

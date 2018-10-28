@@ -16,6 +16,7 @@ from keras.engine.topology import Network
 
 from collections import OrderedDict
 #from scipy.misc import imsave, toimage  # has depricated
+from scipy.misc import toimage
 
 import imageio
 
@@ -39,7 +40,7 @@ np.random.seed(seed=12345)
 
 class CycleGAN():
     def __init__(self, lr_D=2e-4, lr_G=2e-4, image_shape=(308, 260, 1),
-                 date_time_string_addition='', image_folder='HCP_T1T2'):
+                 date_time_string_addition='', image_folder='HCP_T1T2_20slices'):
         self.img_shape = image_shape
         self.channels = self.img_shape[-1]
         self.normalization = InstanceNormalization
@@ -53,10 +54,12 @@ class CycleGAN():
         self.discriminator_iterations = 1  # Number of generator training iterations in each training loop
         self.beta_1 = 0.5
         self.beta_2 = 0.999
-        self.batch_size = 5
-        self.epochs = 200  # choose multiples of 25 since the models are save each 25th epoch
+        self.batch_size = 15 # must be multiple of total number of training images
+        self.epochs = 200  # choose multiples of 20 since the models are save each 20th epoch
         self.save_interval = 1
         self.synthetic_pool_size = 50
+
+        self.setting='_HCP_T1T2_20slices_batchsize15'
 
         # Linear decay of learning rate, for both discriminators and generators
         self.use_linear_decay = True
@@ -221,7 +224,7 @@ class CycleGAN():
             print('Data has been loaded')
 
         # ======= Create designated run folder and store meta data ==========
-        directory = os.path.join('images', self.date_time)
+        directory = os.path.join('images', self.date_time + self.setting)
         if not os.path.exists(directory):
             os.makedirs(directory)
         self.writeMetaDataToJSON()
@@ -498,7 +501,7 @@ class CycleGAN():
 
             if loop_index % 20 == 0:
                 # Save temporary images continously
-                self.save_tmp_images(real_images_A, real_images_B, synthetic_images_A, synthetic_images_B)
+                #self.save_tmp_images(real_images_A, real_images_B, synthetic_images_A, synthetic_images_B)
                 self.print_ETA(start_time, epoch, epoch_iterations, loop_index)
 
         # ======================================================================
@@ -677,7 +680,7 @@ class CycleGAN():
 		
 
     def saveImages(self, epoch, real_image_A, real_image_B, num_saved_images=1):
-        directory = os.path.join('images', self.date_time)
+        directory = os.path.join('images', self.date_time + self.setting)
         if not os.path.exists(os.path.join(directory, 'A')):
             os.makedirs(os.path.join(directory, 'A'))
             os.makedirs(os.path.join(directory, 'B'))
@@ -719,10 +722,10 @@ class CycleGAN():
 
             self.truncateAndSave(real_image_Ab, real_image_A, synthetic_image_B, reconstructed_image_A,
                                  'images/{}/{}/epoch{}_sample{}.png'.format(
-                                     self.date_time, 'A' + testString, epoch, i))
+                                     self.date_time + self.setting, 'A' + testString, epoch, i))
             self.truncateAndSave(real_image_Ba, real_image_B, synthetic_image_A, reconstructed_image_B,
                                  'images/{}/{}/epoch{}_sample{}.png'.format(
-                                     self.date_time, 'B' + testString, epoch, i))
+                                     self.date_time + self.setting, 'B' + testString, epoch, i))
 
     def save_tmp_images(self, real_image_A, real_image_B, synthetic_image_A, synthetic_image_B):
         try:
@@ -735,7 +738,7 @@ class CycleGAN():
 
             self.truncateAndSave(None, real_images, synthetic_images, reconstructed_images,
                                  'images/{}/{}.png'.format(
-                                     self.date_time, 'tmp'))
+                                     self.date_time + self.setting, 'tmp'))
         except: # Ignore if file is open
             pass
 
@@ -782,29 +785,29 @@ class CycleGAN():
 
     def saveModel(self, model, epoch):
         # Create folder to save model architecture and weights
-        directory = os.path.join('saved_models', self.date_time)
+        directory = os.path.join('saved_models', self.date_time + self.setting)
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        model_path_w = 'saved_models/{}/{}_weights_epoch_{}.hdf5'.format(self.date_time, model.name, epoch)
+        model_path_w = 'saved_models/{}/{}_weights_epoch_{}.hdf5'.format(self.date_time + self.setting, model.name, epoch)
         model.save_weights(model_path_w)
-        model_path_m = 'saved_models/{}/{}_model_epoch_{}.json'.format(self.date_time, model.name, epoch)
+        model_path_m = 'saved_models/{}/{}_model_epoch_{}.json'.format(self.date_time + self.setting, model.name, epoch)
         model.save_weights(model_path_m)
         json_string = model.to_json()
         with open(model_path_m, 'w') as outfile:
             json.dump(json_string, outfile)
-        print('{} has been saved in saved_models/{}/'.format(model.name, self.date_time))
+        print('{} has been saved in saved_models/{}/'.format(model.name, self.date_time + self.setting))
 
     def writeLossDataToFile(self, history):
         keys = sorted(history.keys())
-        with open('images/{}/loss_output.csv'.format(self.date_time), 'w') as csv_file:
+        with open('images/{}/loss_output.csv'.format(self.date_time + self.setting), 'w') as csv_file:
             writer = csv.writer(csv_file, delimiter=',')
             writer.writerow(keys)
             writer.writerows(zip(*[history[key] for key in keys]))
 
     def writeMetaDataToJSON(self):
 
-        directory = os.path.join('images', self.date_time)
+        directory = os.path.join('images', self.date_time + self.setting)
         if not os.path.exists(directory):
             os.makedirs(directory)
         # Save meta_data
@@ -836,7 +839,7 @@ class CycleGAN():
             'number of B test examples': len(self.B_test),
         })
 
-        with open('images/{}/meta_data.json'.format(self.date_time), 'w') as outfile:
+        with open('images/{}/meta_data.json'.format(self.date_time + self.setting), 'w') as outfile:
             json.dump(data, outfile, sort_keys=True)
 
     def load_model_and_weights(self, model):
